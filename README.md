@@ -4,6 +4,8 @@ A finite framework with 0 as the absolute, built around exact fingerprinting, ca
 
 This repository is a reproducible research sandbox and publication draft for the working idea that SHA-256 fingerprints can be linked to DNA-like walks in the plane, while preserving a tamper-evident, reversible encoding chain.
 
+**Author:** Christopher Thomas Ronio
+
 ## Status
 
 - Publication draft: active working draft
@@ -103,6 +105,12 @@ This project should be read as a reproducible mathematical and computational dra
 - an exact encoding result,
 - a tested computational model,
 - and a biological hypothesis requiring additional validation.
+
+## Support continued research
+
+If you find this work valuable and wish to support continued research and development, contributions are welcome:
+
+**Bitcoin address:** `bc1qhl09nvanfsest9zy02hm8dx063jv8adhtteuh7`
 
 ## License
 
