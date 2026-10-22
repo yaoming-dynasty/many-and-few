@@ -1,0 +1,122 @@
+#---
+
+### 1. Mathematical Foundation: Characteristic Functions & Power Sets
+
+#In set theory, the power set \\(\mathscr{P}A\\) of a ground set \\(A\\) is #equinumerous to the set of characteristic functions \\(2^A = \{f : A \to #\{0, 1\}\}\\) [1, 2]. 
+
+#For a finite ground set \\(A = \{0, 1, 2, \dots, 255\}\\) containing 256 #elements, every subset \\(S \subseteq A\\) is uniquely identified by its #256-bit characteristic integer [3]:
+
+#\\[s = \sum_{i \in S} 2^i \in [0, 2^{256} - 1]\\]
+
+#* **Disjoint Union Homomorphism:** The disjoint union of two sets \\(S_1 #\cap S_2 = \emptyset\\) corresponds to integer addition \\(s_{\text{union}} #= s_1 + s_2\\) [4, 5].
+#* **Cryptographic Point Mapping:** In our engine, every subset \\(S\\) maps #to a unique curve point \\(P_S = [s]B\\) on the Twisted Edwards curve. By #scalar linearity, disjoint set unions map directly to curve point #additions:
+
+#\\[[s_1 \cup s_2]B = [s_1]B + [s_2]B\\]
+
+#---
+
+### 2. Cantor's Diagonalization in 256-Bit Scalar Space
+
+#Cantor’s diagonal argument proves that no set is equinumerous to its power #set (\\(K < 2^K\\)) [6, 7]. Given any list of \\(N\\) subsets represented #as 256-bit characteristic vectors \\(M_0, M_1, \dots, M_{N-1}\\), we #construct a new subset \\(D\\) by flipping the \\(i\\)-th bit along the #diagonal [6]:
+
+#\\[D_i = 1 - M_{i,i}\\]
+
+#The resulting characteristic scalar \\(s_D\\) is guaranteed to differ from #every row \\(M_i\\) in at least the \\(i\\)-th element, constructing a #subset outside the sequence [6].
+
+#---
+
+### 3. Python Implementation
+
+#Here is the Python implementation applying `UnifiedCryptoEngine` #(`unified_crypto_engine-v2.py`) to map finite power sets to curve points, #verify subset union additivity, and execute Cantor's diagonal #construction:
+
+```python
+import importlib.util
+import random
+
+# Load the UnifiedCryptoEngine module
+spec = importlib.util.spec_from_file_location(
+    "unified_crypto_engine_v2",
+    "/workspace/artifacts/unified_crypto_engine-v2.py",
+)
+engine_mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(engine_mod)
+
+engine = engine_mod.UnifiedCryptoEngine()
+
+
+# --- 1. Subset <-> Scalar Mappings ---
+def subset_to_scalar(subset_indices: set) -> int:
+    """Converts a subset S \subseteq {0, ..., 255} into a 256-bit scalar integer."""
+    s = 0
+    for idx in subset_indices:
+        s |= 1 << idx
+    return s
+
+
+def scalar_to_subset(s: int) -> set:
+    """Converts a 256-bit scalar integer back to a subset S."""
+    return {i for i in range(256) if (s >> i) & 1}
+
+
+# --- 2. Disjoint Union Curve Homomorphism ---
+S1 = {0, 3, 8, 254}
+S2 = {1, 5, 12, 200}
+
+s1 = subset_to_scalar(S1)
+s2 = subset_to_scalar(S2)
+
+# Map subsets S1 and S2 to Projective Curve Points
+P1 = engine.scalar_mult_projective(s1, engine.B_proj)
+P2 = engine.scalar_mult_projective(s2, engine.B_proj)
+
+# Disjoint Union Point: P(S1 u S2) == P(S1) + P(S2)
+s_union = subset_to_scalar(S1 | S2)
+P_union = engine.scalar_mult_projective(s_union, engine.B_proj)
+P_sum = engine.add_projective(P1, P2)
+
+print("S1:", S1)
+print("S2:", S2)
+print(
+    "Disjoint Union Point Match:",
+    engine.to_affine(P_union) == engine.to_affine(P_sum),
+)
+
+
+# --- 3. Cantor's Diagonal Construction over 256 Subsets ---
+random.seed(42)
+matrix_256 = [random.getrandbits(256) for _ in range(256)]
+
+# Diagonal Flip: d_i = 1 - M_{i,i}
+diagonal_scalar = 0
+for i in range(256):
+    bit_i = (matrix_256[i] >> i) & 1
+    flipped_bit = 1 - bit_i
+    diagonal_scalar |= flipped_bit << i
+
+# Check that the diagonal subset is distinct from all 256 rows
+is_distinct = all(diagonal_scalar != row for row in matrix_256)
+print("Cantor Diagonal subset distinct from all 256 rows?", is_distinct)
+
+# Map diagonal subset commitment to a public key & SHA-256 seal
+diagonal_point = engine.to_affine(
+    engine.scalar_mult_projective(diagonal_scalar, engine.B_proj)
+)
+pk_bytes = engine.encode_point(diagonal_point)
+pow_nonce, pow_hash = engine.solve_pow(pk_bytes, difficulty_zeros=4)
+
+print("Diagonal Public Point (Hex):", pk_bytes.hex())
+print(f"PoW Seal Nonce: {pow_nonce}, Hash: {pow_hash}")
+```
+
+---
+
+### Execution Output
+
+```
+S1: {0, 3, 8, 254}
+S2: {1, 5, 12, 200}
+Disjoint Union Point Match: True
+Cantor Diagonal subset distinct from all 256 rows? True
+Diagonal Public Point (Hex): 91d1e678385dbca0ee3c04be1b8f10825313be2be2edcd5bd2613d7fb8f5dd4a
+PoW Seal Nonce: 85270, Hash: 0000bfed69ee735ed4bf33be6a77f98feecf082e6d9d1512a87df24dcaeb3ae9
+```
