@@ -1,0 +1,40 @@
+def __post_init__(self):
+    if not isinstance(self.terms, tuple):
+        raise TypeError(f"terms must be a tuple; got {type(self.terms).__name__}")
+
+    cleaned = []
+    for i, item in enumerate(self.terms):
+        if not (isinstance(item, tuple) and len(item) == 2):
+            raise TypeError(
+                f"terms[{i}] must be an (Ord, int) pair; got {item!r}"
+            )
+        e, c = item
+        if not isinstance(e, Ord):
+            raise TypeError(
+                f"terms[{i}][0] (exponent) must be Ord; "
+                f"got {type(e).__name__}: {e!r}"
+            )
+        # `type(c) is not int` rejects bool and float in one shot.
+        if type(c) is not int:
+            raise TypeError(
+                f"terms[{i}][1] (coefficient) must be int; "
+                f"got {type(c).__name__}: {c!r}"
+            )
+        if c < 0:
+            raise ValueError(
+                f"terms[{i}][1] (coefficient) must be positive; got {c!r}"
+            )
+        if c == 0:
+            continue
+        cleaned.append((e, c))
+
+    for i in range(len(cleaned) - 1):
+        e1, _ = cleaned[i]
+        e2, _ = cleaned[i + 1]
+        if not (e1 > e2):
+            raise ValueError(
+                f"CNF exponents must strictly decrease; "
+                f"terms[{i}].exp = {e1!r} is not > terms[{i+1}].exp = {e2!r}"
+            )
+
+    object.__setattr__(self, "terms", tuple(cleaned))
